@@ -240,9 +240,9 @@ until ($stop)
 	# give the user three chances to enter their password.
 	until (($passwords{$user_name} eq $password) or $count == 3)
         {
-            &password();
+            &password($user_name);
 
-	    $count++;
+	    # $count++;
         }
         
         # If the password isn't correct at this point the user has exhausted 

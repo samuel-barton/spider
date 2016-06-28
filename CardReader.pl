@@ -282,7 +282,7 @@ until ($stop)
 
             $password = <STDIN>;
             chomp($password);
-	    print '\n';
+	    print "\n";
 	    $count++;
         }
         
