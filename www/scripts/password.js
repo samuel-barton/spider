@@ -1,15 +1,13 @@
 /*=============================================================================
  *
- * Name: welcome.js
+ * Name: password.js
  *
  * Created by: Samuel Barton
  *
- * Project: Card Reader
- * 
- * Description: This program will run as a script on the html pages which are 
- *              used to interact with those logging into the system. It will
- *              be responsible for loading different content depending on what
- *              is happening.
+ * Project: IMT / card reader (Spider)
+ *
+ * Description: This script will handle retriving the password and passing it 
+ *              back to WebCardReader.pl
  *
  *===========================================================================*/
 
@@ -23,8 +21,8 @@
  * 
  * Description: This function uses AJAX to retrieve the swipe.txt file from the
  *              "server" whose root is at /home/sbarton/card-reader/www. This
- *              file is written to by WebCardReader.pl to alert the page that 
- *              a card swipe has occured. 
+ *              file is written to by WebCardReader.pl to alert the page of 
+ *              the password authentication status. 
  *
  *===========================================================================*/
 function getStatus()
@@ -48,11 +46,11 @@ function getStatus()
 
             if (ret_val.includes("true"))
             {
-                loadPage("password.php");
+                loadPage("status.php");
             }
-            else if (ret_val.includes("logout"))
+            if (ret_val.includes("false"))
             {
-                loadPage("logout.php");
+                loadPage("fail.php");
             }
         }
     };
@@ -74,9 +72,10 @@ function loadPage(page)
     window.location.assign(page);
 }
 
+
 /*=============================================================================
  *
- * Function: waitForSwipe
+ * Function: waitForStatus
  *
  * Parameters: none
  *
@@ -93,7 +92,7 @@ function loadPage(page)
  *              work properly, and this took a bit of tie to figure out.
  *
  *===========================================================================*/
-function waitForSwipe()
+function waitForStatus()
 {
     window.setInterval(getStatus, 1000);
 }

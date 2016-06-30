@@ -1,15 +1,13 @@
 /*=============================================================================
  *
- * Name: welcome.js
+ * Name: status.js
  *
  * Created by: Samuel Barton
  *
- * Project: Card Reader
- * 
- * Description: This program will run as a script on the html pages which are 
- *              used to interact with those logging into the system. It will
- *              be responsible for loading different content depending on what
- *              is happening.
+ * Project: IMT / card reader (Spider)
+ *
+ * Description: This script will handle getting the status and sending the user
+ *              back to the welcome screen.
  *
  *===========================================================================*/
 
@@ -21,10 +19,10 @@
  *
  * Returns: void
  * 
- * Description: This function uses AJAX to retrieve the swipe.txt file from the
+ * Description: This function uses AJAX to retrieve the status.txt file from the
  *              "server" whose root is at /home/sbarton/card-reader/www. This
- *              file is written to by WebCardReader.pl to alert the page that 
- *              a card swipe has occured. 
+ *              file is written to by WebCardReader.pl to alert the page of 
+ *              the purpose reception status. 
  *
  *===========================================================================*/
 function getStatus()
@@ -43,16 +41,15 @@ function getStatus()
         if (xhttp.readyState == 4 && xhttp.status == 200)
         {
             // the text value returned by the server from swipe.txt (this will
-            // be one of "true" or "false"
+            // be one of "true", "continue", or "false". Now as odd as it is, 
+            // we only care about false this time as when the status is false
+            // it means that the program has successfully finished the loop
+            // and logged the login into the logfiles.
             var ret_val = xhttp.responseText;
 
-            if (ret_val.includes("true"))
+            if (ret_val.includes("false"))
             {
-                loadPage("password.php");
-            }
-            else if (ret_val.includes("logout"))
-            {
-                loadPage("logout.php");
+                loadPage("success.php");
             }
         }
     };
@@ -74,9 +71,10 @@ function loadPage(page)
     window.location.assign(page);
 }
 
+
 /*=============================================================================
  *
- * Function: waitForSwipe
+ * Function: waitForStatus
  *
  * Parameters: none
  *
@@ -93,7 +91,7 @@ function loadPage(page)
  *              work properly, and this took a bit of tie to figure out.
  *
  *===========================================================================*/
-function waitForSwipe()
+function waitForStatus()
 {
     window.setInterval(getStatus, 1000);
 }

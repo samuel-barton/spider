@@ -16,15 +16,53 @@ use v5.14;
 #==============================================================================
 
 # paths to html files
-my $password_output_path = 'www/password.html';
-my $success_output_path = 'html/success.html';
-my $fail_output_path = 'html/fail.html';
+my $password_output_path = 'www/password.php';
+my $success_output_path = 'www/success.php';
+my $status_output_path = "www/status.php";
+my $logout_output_path = "www/logout.php";
+my $fail_output_path = 'www/fail.php';
 
-my $password_input_path = 'html/template/password.html';
-my $success_input_path = 'html/template/success.html';
-my $fail_input_path = 'html/template/fail.html';
+my $password_input_path = 'html/template/password.php';
+my $success_input_path = 'html/template/success.php';
+my $status_input_path = "html/template/status.php";
+my $fail_input_path = 'html/template/fail.php';
+my $logout_input_path = 'html/template/logout.php';
 
-&password("jane");
+#==============================================================================
+#
+# Function name: parseFail
+#
+# parameters: username
+#
+# Returns: void
+#
+# Description: this function generates the custom status login fail page for
+#              each individual user.
+#
+#==============================================================================
+sub parseFail
+{
+    my $username = $_[0];
+    &parseUser($username, $fail_input_path, $fail_output_path);
+}
+
+#==============================================================================
+#
+# Function name: parseLogout
+#
+# parameters: username
+#
+# Returns: void
+#
+# Description: this function generates the custom logout  page for
+#              each individual user.
+#
+#==============================================================================
+sub parseLogout
+{
+    my $username = $_[0];
+    &parseUser($username, $logout_input_path, $logout_output_path);
+}
 
 #==============================================================================
 #
@@ -38,14 +76,37 @@ my $fail_input_path = 'html/template/fail.html';
 #              individual user.
 #
 #==============================================================================
-sub password
+sub parsePassword
+{
+    my $username = $_[0];
+    &parseUser($username, $password_input_path, $password_output_path);
+}
+
+
+#==============================================================================
+#
+# Function name: parseUser
+#
+# parameters: username
+#             input path
+#             output path
+#
+# Returns: void
+#
+# Description: This function parses a file and puts in a personalized username
+#              in place of the placeholder in the template file.
+#
+#==============================================================================
+sub parseUser
 {
     # get parameter.
     my $username = $_[0];
+    my $input_path = $_[1];
+    my $output_path = $_[2];
 
     # open the input and output files
-    my $input_file = &read($password_input_path);
-    my $output_file = &write($password_output_path);
+    my $input_file = &read($input_path);
+    my $output_file = &write($output_path);
 
     # loop through the input file, and write each line to the output file, 
     # substituting the parameter for every instance of USER. 
@@ -63,41 +124,39 @@ sub password
 
 #==============================================================================
 #
-# Function name: begin
+# Function name: parseStatus
 #
-# parameters: file handle to output.html
+# parameters: username
 #
 # Returns: void
 #
-# Decription: this function prints out the header for the top of the html file.
+# Description: this function generates the custom status entry page for each
+#              individual user.
 #
 #==============================================================================
-sub begin
+sub parseStatus
 {
-    my $fh = $_[0];
-    say $fh "<html>";
-    say $fh "<body>";
+    my $username = $_[0];
+    &parseUser($username, $status_input_path, $status_output_path);
 }
 
 #==============================================================================
 #
-# Function name: end
+# Function name: parseSuccess
 #
-# parameters: file handle to output.html
+# parameters: username
 #
 # Returns: void
 #
-# Decription: this function prints out the footer for the bottom of the html
-# file.
+# Description: this function generates the custom success page for each
+#              individual user.
 #
 #==============================================================================
-sub end
+sub parseSuccess
 {
-    my $fh = $_[0];
-    say $fh "</html>";
-    say $fh "</body>";
+    my $username = $_[0];
+    &parseUser($username, $success_input_path, $success_output_path);
 }
-
 
 #==============================================================================
 #

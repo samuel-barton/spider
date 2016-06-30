@@ -157,6 +157,28 @@ for my $line (<logged_in_users>)
 Parallel::Jobs::start_job({stderr_capture => 1 | stdout_capture => 1}, 
                           "sudo $FindBin::Bin/read.py");
 
+# Create a named pipe called password.fifo
+my $password_fifo_path = "www/password.fifo";
+# Create a named pipe called purpose.fifo
+my $purpose_fifo_path = "www/purpose.fifo";
+
+# if the fifo does not exist
+unless ( -p $password_fifo_path )
+{
+    # remove any file with the name we are going to use.
+    unlink($password_fifo_path);
+    # create the fifo, making it read/write for everyone.
+    system("mkfifo -m 666 $password_fifo_path");
+}
+
+# if the fifo does not exist
+unless ( -p $purpose_fifo_path )
+{
+    # remove any file with the name we are going to use.
+    unlink($purpose_fifo_path);
+    # create the fifo, making it read/write for everyone.
+    system("mkfifo -m 666 $purpose_fifo_path");
+}
 
 # loop infinitely logging users in and out as they swipe their cards and enter
 # their credentials.
@@ -228,57 +250,75 @@ until ($stop)
         }
 
         # inform the user that they have been logged out
-        system("clear");
-        say "$user_name, you have been successfully logged out. Good bye.";
-        sleep(2);
+        &setStatus("logout");
+        &parseLogout($user_name);
+        sleep (3);
     }
     # if the user is not logged in and the id is recognized
     elsif ($user_name ne $UNAUTHORIZED_CARD)
     {        
         my $count = 0;
         my $password = "";
+
+        &parsePassword($user_name);
+        &setStatus("true");
+
 	    # give the user three chances to enter their password.
 	    until (($passwords{$user_name} eq $password) or $count == 3)
         {
-            say $user_name;
+            # open the password pipe and read its value (this will block till
+            # something is written to the pipe.
+            open (password_fifo, "<", $password_fifo_path) or 
+            die "couldn't open file: $!";
 
-            &password($user_name);
+            $password = <password_fifo>;
+            close(password_fifo);
+            chomp($password);
 
-            &setStatus("true");
-            $password = <STDIN>;
-
+            &setStatus("continue");
 	        $count++;
         }
-        
+       
         # If the password isn't correct at this point the user has exhausted 
         # their chances and this session will exit after the failed attempt is 
-        # logged.
+        # logged. Also the welcome page will be reloaded.
         if ($passwords{$user_name} ne $password)
         {
+            &parseFail($user_name);
+
+            &setStatus("false");
+
             # log the error and restart the whole process
             &logError("password does not match username.");
             $restart = 1;
         }
 
-        # re-enable STDIN echoing
-        system('stty echo');
-        print "\n";
-
         unless ($restart)
         {
-            # ask for the purpose of their visit
-            print "What are you doing here today? ";
-            my $purpose = <STDIN>;
+            &parseStatus($user_name);
+
+            &setStatus("true");
+
+            open(purpose_fifo, "<", $purpose_fifo_path) or 
+            die "couldn't open file: $!";
+
+            my $purpose = <purpose_fifo>;
+            close(purpose_fifo);
             chomp($purpose);
+
+            &setStatus("continue");
 
             # keep asking the user to enter their purpse until they
             # enter data.
-            until (length($purpose) > 1)
+            until (length($purpose) > 0)
             {
-                say "Please describe what you are doing here today.";
-                $purpose = <STDIN>;
+                open(purpose_fifo, "<", $purpose_fifo_path) or 
+                die "couldn't open file: $!";
+                my $purpose = <purpose_fifo>;
                 chomp($purpose);
             }
+
+            &parseSuccess($user_name);
 
             # make sure the log path is correct
             &generatePath();
@@ -447,11 +487,23 @@ sub setupLinks
             "$FindBin::Bin/logs/current/current-$card_reader_name.log");
 }
 
+#==============================================================================
+#
+# Method name: setStatus
+#
+# Parameters status (true, false, continue)
+#
+# Returns: void
+#
+# Description: This subroutine sets the value of 'status.txt', a file used by 
+#              the php and javascript/AJAX programs running on the apache 
+#              server making the web interface work.
+#==============================================================================
 sub setStatus
 {
     my $status = $_[0];
 
-    open(STATUS, ">", "www/swipe.txt") or 
+    open(STATUS, ">", "www/status.txt") or 
     die "couldn't open file: $!";
 
     print STATUS $status;
