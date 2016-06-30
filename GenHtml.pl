@@ -16,7 +16,7 @@ use v5.14;
 #==============================================================================
 
 # paths to html files
-my $password_output_path = 'html/password.html';
+my $password_output_path = 'www/password.html';
 my $success_output_path = 'html/success.html';
 my $fail_output_path = 'html/fail.html';
 

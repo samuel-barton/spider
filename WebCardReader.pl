@@ -164,7 +164,7 @@ until ($stop)
 {
     $restart = 0;
 
-    &welcome();
+    &setStatus("false");
 
     # Once data is received, store it in $data.
     open(fifo, "<", $fifo_path);
@@ -237,12 +237,17 @@ until ($stop)
     {        
         my $count = 0;
         my $password = "";
-	# give the user three chances to enter their password.
-	until (($passwords{$user_name} eq $password) or $count == 3)
+	    # give the user three chances to enter their password.
+	    until (($passwords{$user_name} eq $password) or $count == 3)
         {
+            say $user_name;
+
             &password($user_name);
 
-	    # $count++;
+            &setStatus("true");
+            $password = <STDIN>;
+
+	        $count++;
         }
         
         # If the password isn't correct at this point the user has exhausted 
@@ -440,4 +445,16 @@ sub setupLinks
     unlink("$FindBin::Bin/logs/current/current-$card_reader_name.log");
     symlink("$log_path",
             "$FindBin::Bin/logs/current/current-$card_reader_name.log");
+}
+
+sub setStatus
+{
+    my $status = $_[0];
+
+    open(STATUS, ">", "www/swipe.txt") or 
+    die "couldn't open file: $!";
+
+    print STATUS $status;
+
+    close(STATUS);
 }
