@@ -48,9 +48,13 @@ function getStatus()
             {
                 loadPage("status.php");
             }
-            if (ret_val.includes("false"))
+            else if (ret_val.includes("false"))
             {
                 loadPage("fail.php");
+            }
+            else 
+            {
+                loadPage("password.php");
             }
         }
     };

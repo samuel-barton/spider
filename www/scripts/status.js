@@ -47,9 +47,15 @@ function getStatus()
             // and logged the login into the logfiles.
             var ret_val = xhttp.responseText;
 
+            // for a proper justificatoin of why this is the "success" 
+            // condition see WebCardReader.pl.
             if (ret_val.includes("false"))
             {
                 loadPage("success.php");
+            }
+            else
+            {
+                loadPage("status.php");
             }
         }
     };

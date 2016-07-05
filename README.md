@@ -1,48 +1,92 @@
----------------------------DRIVER AND ITERFACE PROGRAMS------------------------
+Project Spider
+-------------------------------------------------------------------------------
+RFID authentication system.
 
-The current implementation of the managmen for the RFID chip reader is done
-via two programs.
+Spider consists of three pieces:
 
-    read.py - Reads in the data from the card reader directly as binary and 
-              decomposes the ID string out of the struct passed in every time
-              a swipe occurs.
+    Driver software     to handle connecting to and reading from the RFID 
+                        card reader.
 
-    CardReader.pl - the program which handles communication with the end user, 
-                    and runs the read.py program to get the ID from the card
-                    reader.
+    Interface software  to handle interacting with an end user who will use the
+                        software to login/logout of some location.
 
-As it stands right now, the user interacts with a terminal. A login occurs when
-a user swipes their card and then enters their password. THey are then 
-queried about what they are doing in the lab, and once they enter that info a 
-login is logged in the days logfile. When they leave they are asked to badge
-out. That causes the logfile to be updated with a logout entry indicating both
-the time of their logout, and how long they were in the lab.
+    Storage software    to handle persistance of the access log, authorized 
+                        user list, and credential information.
 
-----------------------------PLANS FOR CHANGE-----------------------------------
+The structure of the code which makes up this porject is much less monolithic 
+than the above breakdown implies. Each of these pieces coexists within the 
+collection of Perl, Python, PHP, Javascript, and html that makes up this 
+project. To make the complexity of this project less overbearing, a short
+description of each peice of code which makes up this project is provided.
 
-A new version of the program is now being written which will function quite
-differently. Instead of interfacing with the user via a terminal, we are going
-to have a web interface for the user to interact with. The base functionality
-of the program should not change much, but the challenge will be interfacing
-with Apache and updating the webpage for the client. 
+    read.py             Interfaces with the card reader, retrieves the binary
+                        data from the card reader, extracts the card number, 
+                        and writes that to a named pipe (card-id-num.fifo).
 
-The new system will work as follows:
+    WebCardReader.pl    Daemon. Main program which launches read.py and calls
+                        upon functions in GenHtml.pl. Handles authentication
+                        and logging. Built for the web-based UI.
 
-  - When the user walks up to the machine a webpage will be displayed asking
-    them to swipe their card.
+    TextCardReader.pl   Text-based version of WebCardReader.pl. Has all the 
+                        same functionality, but uses a terminal for interacting
+                        with the end user.
 
-  - Once they swipe their card a welcome message will appear on the screen
-    displaying their name and a photograph of them, and they will be prompted
-    for a password. They will have three chances to enter their password.
+    GenHtml.pl          Personalizes html (actually PHP) files used for the 
+                        web UI. Writes to fail.php, logout.php, password.php
+                        status.php, and success.php.
 
-      - If they succeed in entering then they will be asked to enter why they 
-        are here. Once they do that their login will be logged and a welcome
-        screen will appear on the webpage; also, the door will open for them
-        to access the lab. 
+    welcome.js          Waits for swipe of authenticated card, alerted by 
+                        WebCardReader.pl, then loads password.php.
 
-      - If they fail three times the page will return to the card swipe 
-        request page and the bad login attempt will be logged.
+    password.js         Waits for authentication of submitted password, 
+                        authentication is handled by WebCardReader.pl, and 
+                        loads status.php on a correct password. On a failed 
+                        password it either reloads password.php or fail.php
+                        depending on status from WebCardReader.pl. 
 
-This new program will require some research into how to interface a Perl
-program with Apache and other web services. I also need to look into the best
-way to make a webpage update on some event via a Perl script.
+    status.js           Waits for acceptance of entered reason for logging in
+                        and then loads success.php if the user entered a non-
+                        empty reason. Otherwise status.php is loaded again.
+
+    util.js             Contains miscelanious utility functions.
+
+    welcome.html        Simple html page which calls welcome.js on load and 
+                        asks the user to swipe their card.
+
+    auth.php            loaded on password submit by password.php, posts the
+                        submitted password to password.fifo for 
+                        WebCardReader.pl to authenticate.
+
+    password.php        Simple page with a form for the user to enter their 
+                        password wihch calls auth.php on submission.
+
+    status.php          Simple page with a form for the user to enter their 
+                        reason for logging in. Calls submit.php on form 
+                        submission.
+
+    submit.php          Waits for the response from WebCardReader.pl to be 
+                        sure that the reason for logging in was accepted. If
+                        it was, then success.php is loaded, otherwise 
+                        status.php is loaded again.
+
+    success.php         Displays a message to the user alerting them that they
+                        have been successfully logged in. On page load util.js
+                        is called upon to load welcome.html in five seconds.
+
+    fail.php            Loaded by auth.php upon a 'fail' status from 
+                        WebCardReader.pl. Displays a message indicating login
+                        failure due to incorrect password entry. On page load
+                        util.js is called upon to load welcome.html in five
+                        seconds.
+
+    logout.php          Displays a message to the user alerting them that they
+                        have been logged out of the system successfully. On 
+                        page load calls util.js to load welcome.html in five
+                        seconds. Loaded by welcome.js upon 'logout' status from
+                        WebCardReader.pl.
+
+In addition to the number of files which make up this project, some of its 
+complexity is derived from the Apache server which must be running in order
+for the web UI to work at all. The key things to do when configuring the apache
+server for this project are to disable all caching in the virtual-host file, 
+and set the DocumentRoot property to '/home/<username>/card-reader/www'.
