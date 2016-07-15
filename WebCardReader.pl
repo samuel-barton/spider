@@ -1,11 +1,12 @@
 #!/usr/bin/env perl
 
-use v5.14;
 use Fcntl;
 use POSIX;
 use Parallel::Jobs;
 use FindBin;
 use IO::Select;
+use DBI;
+use Persist;
 
 require 'GenHtml.pl';
 
@@ -162,23 +163,8 @@ my $password_fifo_path = "www/password.fifo";
 # Create a named pipe called purpose.fifo
 my $purpose_fifo_path = "www/purpose.fifo";
 
-# if the fifo does not exist
-unless ( -p $password_fifo_path )
-{
-    # remove any file with the name we are going to use.
-    unlink($password_fifo_path);
-    # create the fifo, making it read/write for everyone.
-    system("mkfifo -m 666 $password_fifo_path");
-}
-
-# if the fifo does not exist
-unless ( -p $purpose_fifo_path )
-{
-    # remove any file with the name we are going to use.
-    unlink($purpose_fifo_path);
-    # create the fifo, making it read/write for everyone.
-    system("mkfifo -m 666 $purpose_fifo_path");
-}
+&createFifo($password_fifo_path);
+&createFifo($purpose_fifo_path);
 
 # loop infinitely logging users in and out as they swipe their cards and enter
 # their credentials.
@@ -498,6 +484,7 @@ sub setupLinks
 # Description: This subroutine sets the value of 'status.txt', a file used by 
 #              the php and javascript/AJAX programs running on the apache 
 #              server making the web interface work.
+#
 #==============================================================================
 sub setStatus
 {
@@ -509,4 +496,101 @@ sub setStatus
     print STATUS $status;
 
     close(STATUS);
+}
+
+#==============================================================================
+#
+# Method name: createFifo
+#
+# Parameters fifo_path
+#
+# Returns: void
+#
+# Description: Creates a fifo with the path passed in as a parameter if it 
+#              doesn't exist already.
+#
+#==============================================================================
+sub createFifo
+{
+    my $fifo_path = $_[0];
+
+    # if the fifo does not exist
+    unless ( -p $fifo_path )
+    {
+        # remove any file with the name we are going to use.
+        unlink($fifo_path);
+        # create the fifo, making it read/write for everyone.
+        system("mkfifo -m 666 $fifo_path");
+    }
+}
+
+#==============================================================================
+#
+# Method name: connectToDB
+#
+# Parameters: none
+#
+# Returns: void
+#
+# Description: This method handles establishing the connection to the database
+#
+#==============================================================================
+sub connectToDB
+{
+    my $driver = "postgres";
+    my $database = "cardreader";
+    my $host = "10.200.40.3";
+    my $dsn = "DBI:$driver:database=$database;host=$host";
+    my $userid = "postgres";
+    my $password = "card_reader";
+
+    my $dbh = DBI_>connect($dsn, $userid, $password) or die $DBI::errstr;
+
+    return $dbh;
+}
+
+#==============================================================================
+#
+# Method name: login
+#
+# Parameters: id        - the users RFID number
+#             time      - the time the user logged in
+#             purpose   - the users stated message for logging in 
+#
+# Returns: void
+#
+# Description: This method generates and executes the SQL statements needed to 
+#              update the database to reflect a user login. This means that
+#              the access_log table will need a new row, and the whose_in table
+#              will also need a new row.
+#
+#==============================================================================
+sub login
+{
+    my $id = $_[0];
+    my $time = $_[1];
+    my $purpose = $_[2];
+}
+
+#==============================================================================
+#
+# Method name: logout
+#
+# Parameters: id                - the users RFID number
+#             time              - the time the user logged in
+#             length_logged_in  - amount of time since login
+#
+# Returns: void
+#
+# Description: This method generates and executes the SQL statements needed to 
+#              update the database to reflect a user logout. This means that
+#              the access_log table will need a new row, and the whose_in table
+#              will need a row removed.
+#
+#==============================================================================
+sub logout
+{
+    my $id = $_[0];
+    my $time = $_[1];
+    my $length_logged_in = $_[2];
 }
