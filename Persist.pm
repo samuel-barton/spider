@@ -25,7 +25,6 @@ use DBD::Pg;
 # Returns: void
 #
 # Description: This method handles establishing the connection to the database.
-#              This method is private.
 #
 #==============================================================================
 sub __connectToDB
@@ -98,17 +97,14 @@ sub getLoggedInUsers
 
     # create an array of logged in user ids to return
 
-    my %ids;
+    my @ids;
 
     while ((my @row = $query->fetchrow_array))
     {
-        my $id = shift @row;
-        my $time = shift @row;
-
-        $ids{$id} = $time;
+        push @ids, shift @row;
     }
 
-    return %ids;
+    return @ids;
 }
 
 #==============================================================================
@@ -133,7 +129,102 @@ sub logout
     
     # remove the user referenced by ID from the whose_in table
     my $query = $database->prepare("DELETE FROM whose_in WHERE id = ?");
+    $query->execute("$id");
+}
+
+#==============================================================================
+#
+# Method name: login
+#
+# Parameters: id - the id number of the user being logged out.
+#
+# Returns: void
+#
+# Description: This method updates the whose_in table in the database to
+#              reflect a user login.
+#
+#==============================================================================
+sub login
+{
+    my $self = shift;
+    my $id = shift;
+
+    # get the database handle
+    my $database = $self->{database};
+    
+    # remove the user referenced by ID from the whose_in table
+    my $query = $database->prepare("INSERT INTO whose_in (id) VALUES(?)");
     $query->execute($id);
+}
+
+
+#==============================================================================
+#
+# Method name: logAccess
+#
+# Parameters: id                - the id number of the user being logged in/out
+#             login/logout      - [1 -> login, 0 -> logout]
+#             purpose           - why the user is in
+#
+# Returns: void
+#
+# Description: This method is used to record login/logout events in the 
+#              access_log table in the database.
+#
+#==============================================================================
+sub logAccess
+{
+    my $self = shift;
+    my $id = shift;
+    my $in_out = shift;
+    my $purpose = shift;
+
+    # get the database handle
+    my $database = $self->{database};
+
+    # set the parameter for indicating a login or logout
+    my $login_flag;
+    if ($in_out == 1) 
+    {
+        $login_flag = "true";
+    }
+    else 
+    {
+        $login_flag = "false";
+    }
+
+    # add the login/logout event to the database.
+    my $query = $database->prepare("INSERT INTO ".
+                                   "access_log(time,id,login_logout,purpose) ".
+                                 " VALUES(current_timestamp,?,$login_flag,?)");
+    $query->execute($id,$purpose);
+}
+
+
+#==============================================================================
+#
+# Method Name: logError
+#
+# Parameters: id    - The RFID in process when the error occurred.
+#             error - The error message.
+#
+# Returns: void
+#
+# Description: This method logs an error to the error_log table of the databse.
+#
+#==============================================================================
+sub logError
+{
+    my $self = shift;
+    my $id = shift;
+    my $error = shift;
+
+    # get the database handle
+    my $database = $self->{database};
+
+    my $query = $database->prepare("INSERT INTO error_log(time,id,error) ".
+                                   "VALUES(current_timestamp,?,?)");
+    $query->execute("$id",$error);
 }
 
 #==============================================================================

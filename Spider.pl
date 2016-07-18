@@ -1,5 +1,6 @@
 #!/usr/bin/env perl
 
+use v5.14;
 use Fcntl;
 use POSIX;
 use Parallel::Jobs;
@@ -84,7 +85,7 @@ require 'GenHtml.pl';
 #              - How long they were logged in
 #
 #              The log will look like so (for a logout)
-#              <log info> <date> logout <username> <length_of_time_logged_in>
+#              <log info> <date> logout <username> 
 #
 #              The program will also keep track of users who are currently
 #              logged in, and when they scan their card after being perviously
@@ -114,14 +115,14 @@ my $restart = 0;
 # - The path to the named pipe where the card numbers come from
 my $fifo_path = "card-id-num.fifo";
 # - The hash of currently logged in users
-my %logged_in_users;
+my @logged_in_ids;
 # - the format for getting dates for the timestamp portion of the log entry
 my $date_format = 'date +%b\ %d\ %Y\ %H:%M:%S';
 # - The persistance object used to access the database
 my $database = Persist->spawn();
 
 # Get list of currently logged in users from the database.
-%logged_in_users = $database->getLoggedInUsers();
+@logged_in_ids = $database->getLoggedInUsers();
 
 # Start the python script which reads data from the card reader 
 Parallel::Jobs::start_job({stderr_capture => 1 | stdout_capture => 1}, 
@@ -145,16 +146,16 @@ until ($stop)
 
     # Once data is received, store it in $data.
     open(fifo, "<", $fifo_path);
-    my $data = <fifo>;
-    chomp($data);
+    my $id = <fifo>;
+    chomp($id);
 
     # find out if the card number is recognized.
-    my $user_name, my $real_password = &isAuthorizedUser($data);
+    (my $user_name, my $real_password, my $photo) = &isAuthorizedUser($id);
 
     # If the user is currently logged in
-    if (defined $logged_in_users{$user_name})
+    if (&loggedIn($id))
     {
-        &logout($user_name, $data);
+        &logout($user_name, $id);
 
         # inform the user that they have been logged out
         &setStatus("logout");
@@ -185,18 +186,18 @@ until ($stop)
             &setStatus("continue");
 	        $count++;
         }
-       
+      
         # If the password isn't correct at this point the user has exhausted 
         # their chances and this session will exit after the failed attempt is 
         # logged. Also the welcome page will be reloaded.
-        if ($passwords{$user_name} ne $password)
+        if ($real_password ne $password)
         {
             &parseFail($user_name);
 
             &setStatus("false");
 
             # log the error and restart the whole process
-            &logError("password does not match username.");
+            &logError($id, "password does not match.");
             $restart = 1;
         }
 
@@ -225,36 +226,8 @@ until ($stop)
                 chomp($purpose);
             }
 
-            &parseSuccess($user_name);
-
-            # make sure the log path is correct
-            &generatePath();
-            # determine whether or not the current log path references an
-            # existing file.
-            my $status = -e $log_path;
-
-            open (LOG, ">>", $log_path) or die "couldn't open logfile: $!";
-            my $date = `$date_format`;
-            chomp ($date);
-
-            # if this code is executing, thne the user has successfully
-            # logged in and should be added into the list of logged in 
-            # users.
-            my $time = `date +%s`;
-            chomp($time);
-            $logged_in_users{$user_name} = $time;
-
-            # The name of the card-reader, and the vendor and product ids
-            # need to be able to change with different devices.
-            print LOG "$card_reader_name $vendor_id:$product_id $date".
-                  " login $user_name $purpose\n";
-            close(LOG);
-
-            # fix the symbolic links
-            unless ($status)
-            {
-                &setupLinks();
-            }
+            # log the user in.
+            &login($id,$user_name,$purpose);
         }
     }
 
@@ -262,17 +235,34 @@ until ($stop)
     # his or her card more than once, the program won't act strangely.
     my $ignore = <fifo>;
     close(fifo);
-
-    # open the file to write the list of logged in users 
-    open(logged_in_users, ">", $logged_in_users_path);
-    for my $i (keys %logged_in_users)
-    {
-        print logged_in_users "$i ".$logged_in_users{$i}."\n";
-    }
-    close(logged_in_users);
 }
 
+#==============================================================================
+#
+# Method name: loggedIn
+#
+# Parameters: id - the id being checked
+#
+# Returns: 1 - id is logged in, 0 - id isn't logged in
+#
+# Description: This method searches the list of logged in users to see if the 
+#              ID its been passed is logged in.
+#
+#==============================================================================
+sub loggedIn
+{
+    my $id = shift;
 
+    for my $item (@logged_in_ids)
+    {
+        if ($id eq $item)
+        {
+            return 1;
+        }
+    }
+
+    return 0;
+}
 
 #==============================================================================
 #
@@ -298,13 +288,11 @@ sub generatePath
 #
 # Parameters: the id # from the card reader
 #
-# Returns: $UNAUTHORIZED_CARD - if the card # is not on the list
-#          $recognized_users{$card_num} - if the card # is on the list
+# Returns: ("", "", "") - if the user is not in the database.
+#          (username, password, photo) - if the user is.
 #
-# Description: This method determines whether or not the id # is on the list
-#              of authorized ids. if it is, the method returns the username
-#              associated with the id it was passed, if not, then the method
-#              returns a string signifying an unauthorized card number.
+# Description: This method polls the database for the users information based
+#              on their card number.
 #
 #==============================================================================
 sub isAuthorizedUser
@@ -317,7 +305,7 @@ sub isAuthorizedUser
 
     if (scalar(@res) == 0) 
     {
-        @res = ("","");
+        @res = ("","","");
     }
 
     return @res;
@@ -336,7 +324,8 @@ sub isAuthorizedUser
 #==============================================================================
 sub logError
 {
-    my $error_message = $_[0];
+    my $id = shift;
+    my $error_message = shift;
 
     # make sure the log path is correct
     &generatePath();
@@ -345,7 +334,7 @@ sub logError
     open (LOG, ">>", $log_path) or die "couldn't open logfile: $!";
     my $date = `$date_format`;
     chomp ($date);
-    print LOG "$card_reader_name $vendor_id:$product_id $date".
+    print LOG "$card_reader_name $vendor_id:$product_id $date $id".
               " error: $error_message\n";
     close(LOG);
 
@@ -354,6 +343,8 @@ sub logError
     {
         &setupLinks();
     }
+
+    $database->logError($id,$error_message);
 }
 
 #==============================================================================
@@ -431,7 +422,7 @@ sub createFifo
 # Method name: login
 #
 # Parameters: id        - the users RFID number
-#             time      - the time the user logged in
+#             user_name - the users name
 #             purpose   - the users stated message for logging in 
 #
 # Returns: void
@@ -444,9 +435,49 @@ sub createFifo
 #==============================================================================
 sub login
 {
-    my $id = $_[0];
-    my $time = $_[1];
-    my $purpose = $_[2];
+    # grab parameters
+    my $id = shift;
+    my $user_name = shift;
+    my $purpose = shift;
+
+    # personalize the login success page
+    &parseSuccess($user_name);
+
+    # make sure the log path is correct
+    &generatePath();
+    # determine whether or not the current log path references an
+    # existing file.
+    my $status = -e $log_path;
+
+    # write the login to the local logfile
+    open (LOG, ">>", $log_path) or die "couldn't open logfile: $!";
+    my $date = `$date_format`;
+    chomp ($date);
+
+    # if this code is executing, thne the user has successfully
+    # logged in and should be added into the list of logged in 
+    # users.
+    my $time = `date +%s`;
+    chomp($time);
+
+    # The name of the card-reader, and the vendor and product ids
+    # need to be able to change with different devices.
+    print LOG "$card_reader_name $vendor_id:$product_id $date".
+          " login $user_name $purpose\n";
+    close(LOG);
+
+    # fix the symbolic links
+    unless ($status)
+    {
+        &setupLinks();
+    }
+
+    # add the id to the list of logged in IDs
+    push @logged_in_ids, $id;
+
+    # write the login out to the database
+    $database->logAccess($id,1,$purpose);
+    $database->login($id);
 }
 
 #==============================================================================
@@ -467,33 +498,29 @@ sub logout
     my $user_name = shift;
     my $id = shift;
 
-    # aquire the time they logged in.
-    my $old_time = $logged_in_users{$user_name};
+    # record that the user has logged out both in the array and the database.
+    
+    # peel off each ID from the list of currently logged in IDs looking for the
+    # one logged out.
+    my @tmp;
+    my $item;
+    do
+    {
+        $item = pop @logged_in_ids;
+        push @tmp, $item;
+    }
+    while ($item ne $id);
 
-    # log the user out.
-    delete $logged_in_users{$user_name};
-    $database->logout($data);
-    
-    # get the number of seconds since the epoch.
-    my $time = `date +%s`;
-    chomp($time);
-    
-    # calculate how long the user was logged in.
-    
-    # First, calculate the number of seconds since the user logged in.
-    # Then convert that to hours to get the number of hours elapsed.
-    # Next, convert $len to minutes, then subtract the number of hours
-    # (converted to minutes).
-    # Finally, subtract the number of hours (converted to seconds), and
-    # the number of minutes (converted to seconds) from $len.
-    #
-    # Note, the use of POSIX::floor(<expression>) is intended to
-    # provide us with integer values (instead of floating point).
-    my $len = $time - $old_time;
-    my $hr_len = POSIX::floor(($len / (60 * 60)));
-    my $min_len = POSIX::floor((($len / 60) - ($hr_len * 60)));
-    my $sec_len = 
-    POSIX::floor(($len - (($hr_len * 60 * 60) + ($min_len * 60))));
+    # drop the logged out ID from tmp
+    pop @tmp;
+
+    # put the rest of the still logged in IDs back in logged_in_ids.
+    while (scalar(@tmp) > 0)
+    {
+        push @logged_in_ids, pop @tmp;
+    }
+
+    $database->logout($id);
     
     # Make sure the log path is correct
     &generatePath();
@@ -507,7 +534,6 @@ sub logout
     chomp ($date);
     print LOG "$card_reader_name $vendor_id:$product_id $date";
     print LOG " logout $user_name";
-    printf LOG " %02d:%02d:%02d", $hr_len, $min_len, $sec_len;
     print LOG "\n";
 
     close(LOG);
@@ -517,4 +543,7 @@ sub logout
     {
         &setupLinks();
     }
+
+    # log the logout event to the database
+    $database->logAccess($id,0);
 }
