@@ -202,7 +202,7 @@ sub logAccess
     my $query = $database->prepare("INSERT INTO ".
                                    "access_log(time,id,login_logout,purpose) ".
                                  " VALUES(current_timestamp,?,$login_flag,?)");
-    $query->execute($id,$purpose);
+    $query->execute("$id",$purpose);
 }
 
 
