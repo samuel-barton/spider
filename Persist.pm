@@ -39,7 +39,6 @@ sub __connectToDB
     my $dbh = DBI->connect($dsn, $username, $password) or 
     die $DBI::errstr;
 
-
     return $dbh;
 }
 
@@ -65,10 +64,12 @@ sub getInfo
     # get the database handle
     my $database = $self->{database};
 
+    # poll the database for the user's info
     my $query = $database->prepare("SELECT name, password, photo ".
                                    "FROM user_list WHERE id=?");
     $query->execute($id);
 
+    # return the first, and only since the IDs are unique, set of info returned
     return $query->fetchrow_array; 
 }
 
@@ -86,6 +87,7 @@ sub getInfo
 #==============================================================================
 sub getLoggedInUsers
 {
+    # get an instance of this persist object
     my $self = shift;
 
     # get the database handle
@@ -96,9 +98,9 @@ sub getLoggedInUsers
     $query->execute();
 
     # create an array of logged in user ids to return
-
     my @ids;
 
+    # iterate through the returned rows pulling out the IDs
     while ((my @row = $query->fetchrow_array))
     {
         push @ids, shift @row;
@@ -121,6 +123,7 @@ sub getLoggedInUsers
 #==============================================================================
 sub logout
 {
+    # get an instance of the persist object
     my $self = shift;
     my $id = shift;
 
@@ -146,6 +149,7 @@ sub logout
 #==============================================================================
 sub login
 {
+    # get an instance of the persist object
     my $self = shift;
     my $id = shift;
 
@@ -174,6 +178,7 @@ sub login
 #==============================================================================
 sub logAccess
 {
+    # get an instance of the persist object
     my $self = shift;
     my $id = shift;
     my $in_out = shift;
@@ -215,6 +220,7 @@ sub logAccess
 #==============================================================================
 sub logError
 {
+    # get an instance of the persist object
     my $self = shift;
     my $id = shift;
     my $error = shift;
@@ -240,6 +246,7 @@ sub logError
 #==============================================================================
 sub spawn
 {
+    # establish a connection to the database.
     my $db = &__connectToDB();
 
     # create new persist object
@@ -248,9 +255,6 @@ sub spawn
 
     return $self;
 }
-
-sub test
-{
-    say "hello.";
-}
+# make the program return "true" so perl doesn't complain about the return 
+# value
 1;
