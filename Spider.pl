@@ -20,10 +20,11 @@ require 'GenHtml.pl';
 #
 # Project: Spider
 #
-# Description: This script logs users in and out of some area using a RF card
-#              reader. It also logs each login / logout to a log file which 
-#              will later be pulled from when data is to be sent to NAGIOS and
-#              Security Onion.
+# Description: This program handles the human interface for a RFID card reader.
+#              It provides a web-based user interface for the user to enter
+#              their credentials and purpose for entering the facility. 
+#              Persistance is handled through a database, with local textfile
+#              backup for the access log.
 #
 #              It reads from a named pipe which a python script writes to. The
 #              python script is run in the background by Parallel::Jobs and it
@@ -34,9 +35,9 @@ require 'GenHtml.pl';
 #              would be possible for a malicious user to mimic the card reader 
 #              via typing in the card number (a 10 digit decimal string).
 #
-#              When the program starts, it reads in the list of known users
-#              and their credentials; then it reads in the list of currently
-#              logged in users (from the last time the program ran).
+#              When the program starts, it reads in the list of currently
+#              logged in users (from the last time the program ran). This info
+#              is stored in a PostgreSQL database on a remote machine.
 #
 #              Login: - card number is recognized
 #
@@ -44,17 +45,15 @@ require 'GenHtml.pl';
 #              chaces to enter  his or her password. He or she is then required
 #              to enter a message describing the purpose of his or her visit
 #              to the workspace. Upon entering a purpose to their visit, the 
-#              login is logged and the user is added to the hash of currently 
+#              login is logged and the user is added to the list of currently 
 #              logged in users.
 #
 #              Logout:
 #
-#              The time the user logged in is pulled from the value portion of
-#              the hash of currently logged in users. Then the user is deleted
-#              from the list of logged in users. The length of time the user
-#              was logged in is calculated, and a successful logout is logged.
-#              Finally, a message prints to the screen telling the user that 
-#              they have been successfully logged out.
+#              The users ID is removed from the list of currently logged in
+#              IDs, their logout is recorded on the local and database access
+#              log, and a message is displayed on the web-interface aletring
+#              them that they have been successfully logged out.
 #
 #              The format for the date and time portion of the log entry will
 #              look like this: <month> <day> <year> <hr 0..23> <min> <seconds>
@@ -63,13 +62,11 @@ require 'GenHtml.pl';
 #
 #              At the end of each iteratoin of the main loop, whether a login
 #              or a logout occurred, any card numbers received after the first
-#              one are discarded, and the list of currently logged in users is
-#              written to a text file.
+#              one are discarded.
 #
 #              The program will do the following things
 #              - ask the user to swipe their card
 #              - ask for a password
-#              - state that the user entered the area at <current time>
 #              - ask the user to state their purpose for entering the area
 #
 #              The following data will be logged (for a login):
@@ -82,24 +79,20 @@ require 'GenHtml.pl';
 #
 #              The following data will be logged (for a logout):
 #              - The user who exited
-#              - How long they were logged in
 #
 #              The log will look like so (for a logout)
 #              <log info> <date> logout <username> 
 #
-#              The program will also keep track of users who are currently
-#              logged in, and when they scan their card after being perviously
-#              logged in a message will appear stating that they have been
-#              logged out, and both the user who logged out, and the time they
-#              logged out, will be logged as well.
-#
 #              FindBin::bin is used to find the directory in which this program
 #              is currently running.
+#
+#              This program depends on the Persist.pm object for connectivity
+#              to the database, and on the GenHtml.pl file for customizing the 
+#              webpages displayed to the user.
 #
 #===============================================================================
 # - Sentinel for the infinite loop which is the basis for this script
 my $stop = 0;
-
 # - the path to the log file
 my $log_path;
 # - The string reprisenting an unauthorized card #
@@ -128,9 +121,9 @@ my $database = Persist->spawn();
 Parallel::Jobs::start_job({stderr_capture => 1 | stdout_capture => 1}, 
                           "sudo $FindBin::Bin/read.py");
 
-# Create a named pipe called password.fifo
+# Create two named pipes, password.fifo and purpose.fifo in the Apache 
+# DocumentRoot for retrieving informaiton submitted in the web-forms.
 my $password_fifo_path = "www/password.fifo";
-# Create a named pipe called purpose.fifo
 my $purpose_fifo_path = "www/purpose.fifo";
 
 &createFifo($password_fifo_path);
@@ -142,9 +135,10 @@ until ($stop)
 {
     $restart = 0;
 
+    # Keep the welcome webpage visible until recognized card is swiped.
     &setStatus("false");
 
-    # Once data is received, store it in $data.
+    # Once data is received, store it in $id.
     open(fifo, "<", $fifo_path);
     my $id = <fifo>;
     chomp($id);
@@ -157,8 +151,9 @@ until ($stop)
     {
         &logout($user_name, $id);
 
-        # inform the user that they have been logged out
+        # trigger loading logout.php by welcome.js
         &setStatus("logout");
+        # customize the logout.php page
         &parseLogout($user_name);
         sleep (3);
     }
@@ -168,14 +163,17 @@ until ($stop)
         my $count = 0;
         my $password = "";
 
+        # Customize the password.php page
         &parsePassword($user_name);
+        # trigger loading the password.php page by welcome.js
         &setStatus("true");
 
 	    # give the user three chances to enter their password.
 	    until (($password eq $real_password) or $count == 3)
         {
             # open the password pipe and read its value (this will block till
-            # something is written to the pipe.
+            # something is written to the pipe). The password.fifo pipe is 
+            # written to by auth.php.
             open (password_fifo, "<", $password_fifo_path) or 
             die "couldn't open file: $!";
 
@@ -183,6 +181,7 @@ until ($stop)
             close(password_fifo);
             chomp($password);
 
+            # trigger a reload of password.php by password.js
             &setStatus("continue");
 	        $count++;
         }
@@ -192,8 +191,10 @@ until ($stop)
         # logged. Also the welcome page will be reloaded.
         if ($real_password ne $password)
         {
+            # Customize the fail.php page
             &parseFail($user_name);
 
+            # trigger a load of fail.php by passwrod.js
             &setStatus("false");
 
             # log the error and restart the whole process
@@ -201,12 +202,19 @@ until ($stop)
             $restart = 1;
         }
 
+        # If we make it here, the user has succeeded in entering his or her 
+        # password.
         unless ($restart)
         {
+            # Customize the status.php page.
             &parseStatus($user_name);
 
+            # triger a load of status.php by password.js
             &setStatus("true");
 
+            # open the purpose pipe and read its value (this will block until
+            # something is written to the pipe). The pipe is written to by 
+            # submit.php.
             open(purpose_fifo, "<", $purpose_fifo_path) or 
             die "couldn't open file: $!";
 
@@ -214,6 +222,7 @@ until ($stop)
             close(purpose_fifo);
             chomp($purpose);
 
+            # trigger a reload of status.php if the user enters no purpose.
             &setStatus("continue");
 
             # keep asking the user to enter their purpse until they
@@ -222,7 +231,8 @@ until ($stop)
             {
                 open(purpose_fifo, "<", $purpose_fifo_path) or 
                 die "couldn't open file: $!";
-                my $purpose = <purpose_fifo>;
+                $purpose = <purpose_fifo>;
+                close(purpose_fifo);
                 chomp($purpose);
             }
 
@@ -319,7 +329,8 @@ sub isAuthorizedUser
 #
 # Returns: void
 #
-# Description: This method enables easy logging of error messages.
+# Description: This method enables easy logging of error messages both to the 
+#              local log file and to the database.
 #
 #==============================================================================
 sub logError
@@ -351,7 +362,7 @@ sub logError
 #
 # Method name: setupLinks
 #
-# Parameters:
+# Parameters: none
 #
 # Returns: void
 #
@@ -381,7 +392,7 @@ sub setupLinks
 #==============================================================================
 sub setStatus
 {
-    my $status = $_[0];
+    my $status = shift;
 
     open(STATUS, ">", "www/status.txt") or 
     die "couldn't open file: $!";
@@ -405,7 +416,7 @@ sub setStatus
 #==============================================================================
 sub createFifo
 {
-    my $fifo_path = $_[0];
+    my $fifo_path = shift;
 
     # if the fifo does not exist
     unless ( -p $fifo_path )
@@ -454,16 +465,10 @@ sub login
     my $date = `$date_format`;
     chomp ($date);
 
-    # if this code is executing, thne the user has successfully
-    # logged in and should be added into the list of logged in 
-    # users.
-    my $time = `date +%s`;
-    chomp($time);
-
     # The name of the card-reader, and the vendor and product ids
     # need to be able to change with different devices.
     print LOG "$card_reader_name $vendor_id:$product_id $date".
-          " login $user_name $purpose\n";
+          " login '$user_name' $purpose\n";
     close(LOG);
 
     # fix the symbolic links
@@ -474,10 +479,11 @@ sub login
 
     # add the id to the list of logged in IDs
     push @logged_in_ids, $id;
+    # update the databases list of logged in IDs
+    $database->login($id);
 
     # write the login out to the database
     $database->logAccess($id,1,$purpose);
-    $database->login($id);
 }
 
 #==============================================================================
@@ -520,6 +526,7 @@ sub logout
         push @logged_in_ids, pop @tmp;
     }
 
+    # remove the users ID from the database's list of logged in IDs.
     $database->logout($id);
     
     # Make sure the log path is correct
