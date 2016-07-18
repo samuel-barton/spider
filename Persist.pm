@@ -158,7 +158,7 @@ sub login
     
     # remove the user referenced by ID from the whose_in table
     my $query = $database->prepare("INSERT INTO whose_in (id) VALUES(?)");
-    $query->execute($id);
+    $query->execute("$id");
 }
 
 
