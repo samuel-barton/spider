@@ -75,8 +75,6 @@ sub addUser
     # get the database handle
     my $database = $self->{database};
 
-    say $hex;
-
     # poll the database for the user's info
     my $query = $database->prepare("INSERT INTO user_list(id,name,password, ".
                                    "photo) VALUES(?,?,?,?)");

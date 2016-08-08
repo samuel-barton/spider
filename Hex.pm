@@ -42,66 +42,48 @@ sub fileToHex
     my $input_path = shift;
 
     # pipe the output this shell command into the filehandle 'input_file'
-    open(input_file, "-|", "od -vx $input_path | sed 's/^[0-9]*//'");
+    open(input_file, "-|", "od -t x1 -v $input_path | sed 's/^[0-9]* *//'");
 
     my $contents;
 
-    # loop through the output, pulling out the four character blocks od 
+    # append each line of data pulled in from the shell command to contents.
     for my $line (<input_file>)
     {
-        my @strings = split (/[^0-9a-f]/ , $line);
-
-        for my $item (@strings)
-        {
-	    if (length $item > 1)
-            {	
-                $contents = $contents . $item;
-            }
-        }
+        chomp($line);
+        $contents = $contents . $line;
     }
 
     close(input_file);
 
-    # generate the hex string to put into the postgres database.
+    # generate the escaped hex string to put into the postgres database.
     my $escaped_hex = '\x' . $contents;
-
-    # put it on the front of the array we are returning.
 
     return $escaped_hex;
 }
 
-sub __hexToArray
-{
-    my $hex_string = shift;
-    my @hex_array;
-
-    my $len = length ($hex_string);
-    my $index = 1;
-
-    until ($index == $len)
-    {
-        my $head = substr $hex_string, $index, 4;
-        $index += 4;
-	push @hex_array, $head;
-    }
-
-    return @hex_array;
-}
-
+#==============================================================================
+#
+# Function name: hexToFile
+#
+# Parameters: file_path - the path to the output file
+#             escaped_hex - the escaped hex from the database
+#
+# Returns: void
+#
+# Description: This function takes the escaped hex from the database and writes
+#              it to a file. This string is in raw hex, and is not a string
+#              representation of hex, thus there is no need for using pack() to
+#              convert the string to hex.
+#
+#==============================================================================
 sub hexToFile
 {
     my $file_path = shift;
     my $escaped_hex = shift;
     $escaped_hex =~ s/\\x//;
 
-    my @hex = __hexToArray($escaped_hex);
-
     open(output_file, ">:raw", "$file_path");
-    for my $item (@hex)
-    {
-        my $rev = reverse $item;
-	print output_file pack ("h4", $rev);
-    }
+    print output_file $escaped_hex;
 
     close(output_file);
 }

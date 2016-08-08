@@ -146,7 +146,7 @@ until ($stop)
     # find out if the card number is recognized.
     (my $user_name, my $real_password, my $photo) = &isAuthorizedUser($id);
     # write the photo of the user to the www/img directory.
-    #Hex::hexToFile("www/img/$user_name.jpg", $photo);
+    Hex::hexToFile("www/img/$user_name.jpg", $photo);
 
     # If the user is currently logged in
     if (&loggedIn($id))
