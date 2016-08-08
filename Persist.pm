@@ -15,6 +15,7 @@ package Persist;
 use v5.22;
 use DBI;
 use DBD::Pg;
+use Hex;
 
 #==============================================================================
 #
@@ -40,6 +41,47 @@ sub __connectToDB
     die $DBI::errstr;
 
     return $dbh;
+}
+
+#==============================================================================
+#
+# Method name: addUser
+#
+# Parameters: id        - the id number of the user's RFID card
+#             name      - the user's name
+#             password  - the user's password
+#             photo     - a photo of the user
+#
+# Returns: void
+#
+# Description: This method adds a user to the database. It will be used by a 
+#              maintainance script to add new users to the database as they
+#              are needed.
+#
+#==============================================================================
+sub addUser
+{
+    # get an instance of this persist object
+    my $self = shift;
+    # get the id passed in as an argument
+    my $id = shift;
+    # get the name passed in as an argument
+    my $name = shift;
+    # get the password passed in as an argument
+    my $password = shift;
+    # get the photo passed in as an argument.
+    my $photo_path = shift;
+    my $hex = Hex::fileToHex($photo_path);
+    # get the database handle
+    my $database = $self->{database};
+
+    say $hex;
+
+    # poll the database for the user's info
+    my $query = $database->prepare("INSERT INTO user_list(id,name,password, ".
+                                   "photo) VALUES(?,?,?,?)");
+
+    $query->execute($id, $name, $password,$hex); 
 }
 
 #==============================================================================

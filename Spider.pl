@@ -7,8 +7,8 @@ use Parallel::Jobs;
 use FindBin;
 use IO::Select;
 use Persist;
-
-require 'GenHtml.pl';
+use GenHTML;
+use Hex;
 
 #===============================================================================
 #
@@ -145,6 +145,8 @@ until ($stop)
 
     # find out if the card number is recognized.
     (my $user_name, my $real_password, my $photo) = &isAuthorizedUser($id);
+    # write the photo of the user to the www/img directory.
+    #Hex::hexToFile("www/img/$user_name.jpg", $photo);
 
     # If the user is currently logged in
     if (&loggedIn($id))
@@ -154,7 +156,7 @@ until ($stop)
         # trigger loading logout.php by welcome.js
         &setStatus("logout");
         # customize the logout.php page
-        &parseLogout($user_name);
+        GenHTML::parseLogout($user_name);
         sleep (3);
     }
     # if the user is not logged in and the id is recognized
@@ -164,12 +166,12 @@ until ($stop)
         my $password = "";
 
         # Customize the password.php page
-        &parsePassword($user_name);
+        GenHTML::parsePassword($user_name);
         # trigger loading the password.php page by welcome.js
         &setStatus("true");
 
-	    # give the user three chances to enter their password.
-	    until (($password eq $real_password) or $count == 3)
+	# give the user three chances to enter their password.
+	until (($password eq $real_password) or $count == 3)
         {
             # open the password pipe and read its value (this will block till
             # something is written to the pipe). The password.fifo pipe is 
@@ -183,7 +185,7 @@ until ($stop)
 
             # trigger a reload of password.php by password.js
             &setStatus("continue");
-	        $count++;
+            $count++;
         }
       
         # If the password isn't correct at this point the user has exhausted 
@@ -192,7 +194,7 @@ until ($stop)
         if ($real_password ne $password)
         {
             # Customize the fail.php page
-            &parseFail($user_name);
+            GenHTML::parseFail($user_name);
 
             # trigger a load of fail.php by passwrod.js
             &setStatus("false");
@@ -207,7 +209,7 @@ until ($stop)
         unless ($restart)
         {
             # Customize the status.php page.
-            &parseStatus($user_name);
+            GenHTML::parseStatus($user_name);
 
             # triger a load of status.php by password.js
             &setStatus("true");
@@ -452,7 +454,7 @@ sub login
     my $purpose = shift;
 
     # personalize the login success page
-    &parseSuccess($user_name);
+    GenHTML::parseSuccess($user_name);
 
     # make sure the log path is correct
     &generatePath();
