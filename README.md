@@ -23,17 +23,24 @@ description of each peice of code which makes up this project is provided.
                         data from the card reader, extracts the card number, 
                         and writes that to a named pipe (card-id-num.fifo).
 
-    WebCardReader.pl    Daemon. Main program which launches read.py and calls
-                        upon functions in GenHtml.pl. Handles authentication
-                        and logging. Built for the web-based UI.
+    Spider.pl           Main program used to interface between the driver 
+                        software (read.py), and the web UI. Also handles
+                        connecting to the databaese (Persist.pm), customizing
+                        the user experience for each user (GenHTML.pm), and a
+                        local backup of the access log in case the database 
+                        fails for some reason.
 
-    TextCardReader.pl   Text-based version of WebCardReader.pl. Has all the 
-                        same functionality, but uses a terminal for interacting
-                        with the end user.
-
-    GenHtml.pl          Personalizes html (actually PHP) files used for the 
+    GenHTML.pm          Personalizes html (actually PHP) files used for the 
                         web UI. Writes to fail.php, logout.php, password.php
                         status.php, and success.php.
+
+    Persist.pm          Handles all interaction with the PostgreSQL database
+                        where user information, and access logs, are stored.
+
+    Hex.pm              Handles the conversion of files to and from escaped hex
+                        strings. This is needed in order to save image files to
+                        the postgres database. These files are used for photo
+                        identification of users as they log in.
 
     welcome.js          Waits for swipe of authenticated card, alerted by 
                         WebCardReader.pl, then loads password.php.
@@ -89,4 +96,20 @@ In addition to the number of files which make up this project, some of its
 complexity is derived from the Apache server which must be running in order
 for the web UI to work at all. The key things to do when configuring the apache
 server for this project are to disable all caching in the virtual-host file, 
-and set the DocumentRoot property to '/home/<username>/card-reader/www'.
+and set the DocumentRoot property to '/home/<username>/card-reader/www'. Also, 
+the headers module must be enabled by executing
+
+    $ sudo a2enmod headers
+    $ sudo service apache2 restart
+
+The following are old implementations of the project, one is text based, and
+the other is the original web-based UI version. These are kept around for 
+perspective.
+
+    WebCardReader.pl    Daemon. Main program which launches read.py and calls
+                        upon functions in GenHtml.pl. Handles authentication
+                        and logging. Built for the web-based UI.
+
+    TextCardReader.pl   Text-based version of WebCardReader.pl. Has all the 
+                        same functionality, but uses a terminal for interacting
+                        with the end user.
