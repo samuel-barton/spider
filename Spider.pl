@@ -91,7 +91,7 @@ use Hex;
 #              webpages displayed to the user.
 #
 #===============================================================================
-# - Sentinel for the infinite loop which is the basis for this script
+# - Sentinel for the control loop
 my $stop = 0;
 # - the path to the log file
 my $log_path;
@@ -106,8 +106,12 @@ my $product_id = "0018";
 # - Sentinel for skipping the remainder of the steps of the loop 
 my $restart = 0;
 # - The path to the named pipe where the card numbers come from
-my $fifo_path = "card-id-num.fifo";
-# - The hash of currently logged in users
+my $fifo_path = "$FindBin::Bin/card-id-num.fifo";
+# - The path to the named pipe used to get the users password from the web UI
+my $password_fifo_path = "$FindBin::Bin/www/password.fifo";
+# - The path to the named pipe used to get the users purpose from the web UI
+my $purpose_fifo_path = "$FindBin::Bin/www/purpose.fifo";
+# - The array of currently logged in users
 my @logged_in_ids;
 # - the format for getting dates for the timestamp portion of the log entry
 my $date_format = 'date +%b\ %d\ %Y\ %H:%M:%S';
@@ -123,14 +127,11 @@ Parallel::Jobs::start_job({stderr_capture => 1 | stdout_capture => 1},
 
 # Create two named pipes, password.fifo and purpose.fifo in the Apache 
 # DocumentRoot for retrieving informaiton submitted in the web-forms.
-my $password_fifo_path = "www/password.fifo";
-my $purpose_fifo_path = "www/purpose.fifo";
-
 &createFifo($password_fifo_path);
 &createFifo($purpose_fifo_path);
 
-# loop infinitely logging users in and out as they swipe their cards and enter
-# their credentials.
+# log users in and out of the system as they swipe their cards and enter their
+# credentials
 until ($stop)
 {
     $restart = 0;
@@ -148,9 +149,12 @@ until ($stop)
     # write the photo of the user to the www/img directory.
     Hex::hexToFile("www/img/$user_name.jpg", $photo);
 
-    # If the user is currently logged in
+    # If the user is currently logged in, log them out of the system, display a
+    # message on the web UI alerting them that they have been logged out for 3
+    # seconds, and then reload the welcome page.
     if (&loggedIn($id))
     {
+        # update the datahbase to reflect the logout
         &logout($user_name, $id);
 
         # trigger loading logout.php by welcome.js
@@ -159,7 +163,8 @@ until ($stop)
         GenHTML::parseLogout($user_name);
         sleep (3);
     }
-    # if the user is not logged in and the id is recognized
+    # if the user is not logged in and the id is recognized, log them into the
+    # system.
     elsif ($user_name ne $UNAUTHORIZED_CARD)
     {        
         my $count = 0;
@@ -168,10 +173,10 @@ until ($stop)
         # Customize the password.php page
         GenHTML::parsePassword($user_name);
         # trigger loading the password.php page by welcome.js
-        &setStatus("true");
+        &setStatus("login");
 
-	# give the user three chances to enter their password.
-	until (($password eq $real_password) or $count == 3)
+        # give the user three chances to enter their password.
+        until (($password eq $real_password) or $count == 3)
         {
             # open the password pipe and read its value (this will block till
             # something is written to the pipe). The password.fifo pipe is 
@@ -315,6 +320,9 @@ sub isAuthorizedUser
     # get the information on this user from the databse
     my @res = $database->getInfo($card_num);
 
+    # if the database had nothing on this user, then return an array of three
+    # empty strings to indicate that each field (username,password,photo) had
+    # no information.
     if (scalar(@res) == 0) 
     {
         @res = ("","","");
@@ -327,7 +335,8 @@ sub isAuthorizedUser
 #
 # Method name: logError
 #
-# Parameters: $error_message - a conscise description of the error
+# Parameters: id            - the user's ID
+#             error_message - a conscise description of the error
 #
 # Returns: void
 #
@@ -337,6 +346,7 @@ sub isAuthorizedUser
 #==============================================================================
 sub logError
 {
+    # get the arguments
     my $id = shift;
     my $error_message = shift;
 
@@ -344,6 +354,7 @@ sub logError
     &generatePath();
     my $status = -e $log_path;
 
+    # log the error using the local textfile-based system
     open (LOG, ">>", $log_path) or die "couldn't open logfile: $!";
     my $date = `$date_format`;
     chomp ($date);
@@ -357,6 +368,7 @@ sub logError
         &setupLinks();
     }
 
+    # log the error to the database 
     $database->logError($id,$error_message);
 }
 
@@ -396,7 +408,7 @@ sub setStatus
 {
     my $status = shift;
 
-    open(STATUS, ">", "www/status.txt") or 
+    open(STATUS, ">", "$FindBin::Bin/www/status.txt") or 
     die "couldn't open file: $!";
 
     print STATUS $status;
@@ -440,10 +452,8 @@ sub createFifo
 #
 # Returns: void
 #
-# Description: This method generates and executes the SQL statements needed to 
-#              update the database to reflect a user login. This means that
-#              the access_log table will need a new row, and the whose_in table
-#              will also need a new row.
+# Description: This method logs the user into the system, recrding the login to
+#              both the database and the local textfile-based system.
 #
 #==============================================================================
 sub login
@@ -483,9 +493,6 @@ sub login
     push @logged_in_ids, $id;
     # update the databases list of logged in IDs
     $database->login($id);
-
-    # write the login out to the database
-    $database->logAccess($id,1,$purpose);
 }
 
 #==============================================================================
@@ -503,11 +510,10 @@ sub login
 #==============================================================================
 sub logout
 {
+    # grab parameters
     my $user_name = shift;
     my $id = shift;
 
-    # record that the user has logged out both in the array and the database.
-    
     # peel off each ID from the list of currently logged in IDs looking for the
     # one logged out.
     my @tmp;
@@ -527,9 +533,6 @@ sub logout
     {
         push @logged_in_ids, pop @tmp;
     }
-
-    # remove the users ID from the database's list of logged in IDs.
-    $database->logout($id);
     
     # Make sure the log path is correct
     &generatePath();
@@ -553,6 +556,6 @@ sub logout
         &setupLinks();
     }
 
-    # log the logout event to the database
-    $database->logAccess($id,0);
+    # update the database to reflect the user's logout
+    $database->logout($id);
 }

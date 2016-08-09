@@ -26,6 +26,9 @@ use Hex;
 # Returns: void
 #
 # Description: This method handles establishing the connection to the database.
+#              The double underscores indicate that this method is "private" 
+#              which in perl simply means that it shouldn't be used outside of
+#              this class.
 #
 #==============================================================================
 sub __connectToDB
@@ -157,8 +160,10 @@ sub getLoggedInUsers
 #
 # Returns: void
 #
-# Description: This method updates the whose_in table in the database to
-#              reflect a user logout.
+# Description: This method logs the user out of the system. It removes the
+#              entry for their ID from the whose_in table, and then calls the
+#              logAccess(...) method to write a logout entry to the access_log
+#              table.
 #
 #==============================================================================
 sub logout
@@ -173,6 +178,9 @@ sub logout
     # remove the user referenced by ID from the whose_in table
     my $query = $database->prepare("DELETE FROM whose_in WHERE id = ?");
     $query->execute("$id");
+
+    # put a logout entry in access_log
+    &logAccess($id, 0);
 }
 
 #==============================================================================
@@ -180,11 +188,13 @@ sub logout
 # Method name: login
 #
 # Parameters: id - the id number of the user being logged out.
+#             purpose - the reason the user logged in.
 #
 # Returns: void
 #
-# Description: This method updates the whose_in table in the database to
-#              reflect a user login.
+# Description: This method logs the user in by adding an entry to the whose_in
+#              table for their ID, and posting a login entry to the access_log
+#              table.
 #
 #==============================================================================
 sub login
@@ -192,13 +202,17 @@ sub login
     # get an instance of the persist object
     my $self = shift;
     my $id = shift;
+    my $purpose = shift;
 
     # get the database handle
     my $database = $self->{database};
     
-    # remove the user referenced by ID from the whose_in table
+    # Add the user to the whose_in table, and call logAccess(...)
     my $query = $database->prepare("INSERT INTO whose_in (id) VALUES(?)");
     $query->execute("$id");
+
+    # record the login in the access_log table
+    &logAccess($id,1,$purpose);
 }
 
 

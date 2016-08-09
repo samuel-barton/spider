@@ -43,10 +43,10 @@ function getStatus()
         if (xhttp.readyState == 4 && xhttp.status == 200)
         {
             // the text value returned by the server from swipe.txt (this will
-            // be one of "true" or "false"
+            // be one of "login" or "logout"
             var ret_val = xhttp.responseText;
 
-            if (ret_val.includes("true"))
+            if (ret_val.includes("login"))
             {
                 loadPage("password.php");
             }
