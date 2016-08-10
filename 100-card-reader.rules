@@ -1,0 +1,17 @@
+#------------------------------------------------------------------------------
+#
+# File name: 100-card-reader.rules
+#
+# Created by: Samuel Barton
+#
+# Project: Spider
+#
+# Date: Summer 2016
+#
+# Description: This udev rules file will make it so that every time the card
+#              reader is plugged into the system its owner will be root, its 
+#              group will be input, and its mode will be 0640 (root read/write,
+#              group read, everyone nothing).
+#
+#------------------------------------------------------------------------------
+ATTRS{idVendor}=="13ba", ATTRS{idProduct}=="0018", OWNER="root", GROUP="input", MODE="0640"

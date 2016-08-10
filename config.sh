@@ -34,7 +34,7 @@ sudo cp apache/000-default.conf /etc/apache2/sites-enabled/;
 # do the configuration for making Spider.pl a service
 
 # create a user for the spider process
-sudo useradd --create-home --system -G input spider;
+sudo useradd --create-home --system spider;
 # put the service file in the upstart service directory
 sudo cp spider.conf /etc/init;
 
