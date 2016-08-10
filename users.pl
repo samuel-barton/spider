@@ -14,7 +14,7 @@
 #              users to the databse.
 #==============================================================================
 
-use v5.22;
+use v5.14;
 use Persist;
 
 # Get the relavent information from the user
