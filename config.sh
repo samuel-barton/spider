@@ -17,7 +17,7 @@
 # install dependencies
 echo "Part one: dependencies"
 sudo apt-get update;
-sudo apt-get install -y libpq-dev lamp-server^;
+sudo apt-get install -y libpq-dev lamp-server^ make;
 sudo cpan install DBI;
 sudo cpan install DBD::Pg;
 sudo cpan install Parallel::Jobs;
