@@ -296,6 +296,7 @@ sub generatePath
 {
     my $log_date = `date +%b-%d-%Y`;
     chomp ($log_date);
+    -e "$FindBin::Bin/logs" or mkdir "$FindBin::Bin/logs";
     $log_path = "$FindBin::Bin/logs/".$log_date.'-'.$card_reader_name.'.log';
 }
 

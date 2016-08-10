@@ -180,7 +180,7 @@ sub logout
     $query->execute("$id");
 
     # put a logout entry in access_log
-    &logAccess($id, 0);
+    $self->logAccess($id, 0);
 }
 
 #==============================================================================
@@ -212,7 +212,7 @@ sub login
     $query->execute("$id");
 
     # record the login in the access_log table
-    &logAccess($id,1,$purpose);
+    $self->logAccess($id,1,$purpose);
 }
 
 
