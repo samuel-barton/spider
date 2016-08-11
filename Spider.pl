@@ -147,6 +147,8 @@ until ($stop)
     # find out if the card number is recognized.
     (my $user_name, my $real_password, my $photo) = &isAuthorizedUser($id);
     # write the photo of the user to the www/img directory.
+    # make sure the path exists.
+    -e "$findBin::Bin/www/img" or mkdir "www/img";
     Hex::hexToFile("www/img/$user_name.jpg", $photo);
 
     # If the user is currently logged in, log them out of the system, display a

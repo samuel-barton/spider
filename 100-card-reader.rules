@@ -14,4 +14,4 @@
 #              group read, everyone nothing).
 #
 #------------------------------------------------------------------------------
-ATTRS{idVendor}=="13ba", ATTRS{idProduct}=="0018", OWNER="root", GROUP="input", MODE="0640"
+ATTRS{idVendor}=="13ba", ATTRS{idProduct}=="0018", OWNER="root", GROUP="input", MODE="0640", RUN+="/usr/bin/spider"
