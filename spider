@@ -1,0 +1,28 @@
+#! /bin/bash
+
+#------------------------------------------------------------------------------
+#
+# File name: spider.sh
+#
+# Created by: Samuel Barton
+#
+# Project: Spider (IMT card reader)
+#
+# Date: Summer 2016
+#
+# Description: This shell script is responsible for starting Spider, it will
+#              fail if the card reader is not plugged in.
+#
+#------------------------------------------------------------------------------
+start_spider() {
+    perl /home/$USER/spider/Spider.pl;
+}
+
+# check to see if the device is connected
+if [ -e /dev/input/by-id/usb-13ba_Barcode_Reader-event-kbd ]
+then 
+    # if so, then start the Spider.pl driver
+    start_spider &
+else # otherwise give an exit status of 1
+    exit 1;
+fi
