@@ -92,6 +92,8 @@ description of each peice of code which makes up this project is provided.
                         seconds. Loaded by welcome.js upon 'logout' status from
                         WebCardReader.pl.
 
+Configurtions
+-------------------------------------------------------------------------------
 In addition to the number of files which make up this project, some of its 
 complexity is derived from the Apache server which must be running in order
 for the web UI to work at all. The key things to do when configuring the apache
@@ -102,6 +104,18 @@ the headers module must be enabled by executing
     $ sudo a2enmod headers
     $ sudo service apache2 restart
 
+There is also a udev rules file to make it so read.py can read from the card 
+reader without running as root. 
+    100-card-reader.rules
+
+Deployment
+-------------------------------------------------------------------------------
+The file config.sh downloads the dependencies, and handles deploying Spider on
+some system.
+
+
+Legacy Code
+-------------------------------------------------------------------------------
 The following are old implementations of the project, one is text based, and
 the other is the original web-based UI version. These are kept around for 
 perspective.
