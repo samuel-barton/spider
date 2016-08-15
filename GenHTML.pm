@@ -161,6 +161,54 @@ sub parseSuccess
 
 #==============================================================================
 #
+# Function name: genLoggedIn
+#
+# parameters: @loggedIn
+#
+# Returns: void
+#
+# Description: This function generates the page which displays the list of 
+#              logged in users.
+#
+#==============================================================================
+sub genLoggedIn
+{
+    my $input_file_path = "html/template/logged-in.html";
+    my $output_file_path = "www/logged-in.html";
+
+    my $in_fh = &read($input_file_path);
+    my $out_fh = &write($output_file_path);
+
+    for my $line (<$in_fh>)
+    {
+        chomp($line);
+        if ($line !~ /DATA/)
+        {
+            say $out_fh $line;
+        }
+        else
+        {
+            for my $info (@_)
+            {
+                my @user = @$info;
+                my $name = shift @user;
+                my $time_in = shift @user;
+                my $photo = shift @user;
+                say $out_fh "            <tr>";
+                say $out_fh "                <td>$name</td>";
+                say $out_fh "                <td>$time_in</td>";
+                say $out_fh "                <td><img src=\"$photo\"></td>";
+                say $out_fh "            </tr>";
+            }
+        }
+    }
+
+    close($in_fh);
+    close($out_fh);
+}
+
+#==============================================================================
+#
 # Function name: write
 #
 # parameters: path

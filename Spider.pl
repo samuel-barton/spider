@@ -122,8 +122,13 @@ my $database = Persist->spawn();
 @logged_in_ids = $database->getLoggedInUsers();
 
 # Start the python script which reads data from the card reader 
+my $card_type = "--swipe";
+if (length(@ARGV) > 1)
+{
+    $card_type = $ARGV[1];
+}
 Parallel::Jobs::start_job({stderr_capture => 1 | stdout_capture => 1}, 
-                          "$FindBin::Bin/read.py --swipe");
+                          "$FindBin::Bin/read.py $card_type");
 
 # Create two named pipes, password.fifo and purpose.fifo in the Apache 
 # DocumentRoot for retrieving informaiton submitted in the web-forms.

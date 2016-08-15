@@ -15,14 +15,18 @@
 #
 #------------------------------------------------------------------------------
 start_spider() {
-    perl /home/$USER/spider/Spider.pl;
+    perl /home/$USER/spider/Spider.pl $1;
 }
 
 # check to see if the device is connected
 if [ -e /dev/input/by-id/usb-13ba_Barcode_Reader-event-kbd ]
 then 
-    # if so, then start the Spider.pl driver
-    start_spider &
+    # if so, then start the Spider.pl driver in rfid mode.
+    start_spider --rfid &
+elif [ -e /dev/input/by-id/usb-Mag-Tek_USB_Swipe_Reader-event-kbd ]
+then 
+    # if so, then start the Spider.pl driver in swipe mode.
+    start_spider --swipe &
 else # otherwise give an exit status of 1
     exit 1;
 fi

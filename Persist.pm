@@ -154,6 +154,38 @@ sub getLoggedInUsers
 
 #==============================================================================
 #
+# Method name: getLoginTime
+#
+# Parameters: id - the id number of the user whose login time we're finding
+#
+# Returns: void
+#
+# Description: This function queries the database for some users time of last
+#              login.
+#
+#==============================================================================
+sub getLoginTime
+{
+    # get an instance of this persist object
+    my $self = shift;
+    # get the ID we are getting the login time for
+    my $id = shift;
+
+    # get the database handle
+    my $database = $self->{database};
+
+    # get the last time the user logged in to the system.
+    my $query = $database->prepare("SELECT time from access_log WHERE id=?".
+                          "AND login_logout = true ORDER BY time DESC LIMIT 1");
+    $query->execute($id);
+
+    # the array returned can only have one element, but so we don't get a list,
+    # return the first (only) item in the array.
+    return $query->fetchrow_array;
+}
+
+#==============================================================================
+#
 # Method name: logout
 #
 # Parameters: id - the id number of the user being logged out.

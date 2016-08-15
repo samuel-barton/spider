@@ -20,3 +20,14 @@ function pauseThenLoad()
 {
     window.setTimeout(loadPage, 5000);
 }
+
+function reload()
+{
+    location.reload(true);
+}
+
+function pauseThenReload()
+{
+    window.setTimeout(reload, 5000);
+}
+
