@@ -15,44 +15,109 @@ import stat
 # note: the basis for reading in the data from the card reader came from: 
 #       http://stackoverflow.com/questions/5060710/format-of-dev-input-event
 #
-# Date: development - April 2014
-#       commenting and finishing modifications: May 2014
+# Project: Spider
 #
-# Project: RF Card Reader
-#
-# Description: This program reads in card numbers from the RF card reader, and
-#              writes them to a pipe which is read from by smartCardReader.pl
+# Description: This program reads in card numbers from the swipe card reader,
+#              and writes them to a pipe which is read from by Spider.pl
 #
 #              The fifo written to is defined by command line argument, but if
 #              no argument is present it is written to the fifo read by 
-#              smartCardReader.pl.
+#              Spider.pl.
 #
 #==============================================================================
 
-# the codes
-# KEY_1 = 2
-# KEY_2 = 3
-# KEY_3 = 4
-# KEY_4 = 5
-# KEY_5 = 6
-# KEY_6 = 7
-# KEY_7 = 8
-# KEY_8 = 9
-# KEY_9 = 10
-# KEY_0 = 11
+# These key codes came from /usr/include/linux/input-event-codes.h
+KEY_1 = 2
+KEY_2 = 3
+KEY_3 = 4
+KEY_4 = 5
+KEY_5 = 6
+KEY_6 = 7
+KEY_7 = 8
+KEY_8 = 9
+KEY_9 = 10
+KEY_0 = 11
+KEY_MINUS = 12
+KEY_EQUAL = 13
+KEY_Q = 16
+KEY_W = 17
+KEY_E = 18
+KEY_R = 19
+KEY_T = 20
+KEY_Y = 21
+KEY_U = 22
+KEY_I = 23
+KEY_O = 24
+KEY_P = 25
+KEY_ENTER = 28
+KEY_A = 30
+KEY_S = 31
+KEY_D = 32
+KEY_F = 33
+KEY_G = 34
+KEY_H = 35
+KEY_J = 36
+KEY_K = 37
+KEY_L = 38
+KEY_SEMICOLON = 39
+KEY_LEFTSHIFT = 42 
+KEY_BACKSLASH = 43
+KEY_SLASH = 53
+KEY_Z = 44
+KEY_X = 45
+KEY_C = 46
+KEY_V = 47
+KEY_B = 48
+KEY_N = 49
+KEY_M = 50
+KEY_COMMA = 51
+KEY_DOT = 52
 
-code_to_key = {
-    2 : str(1),
-    3 : str(2),
-    4 : str(3),
-    5 : str(4),
-    6 : str(5),
-    7 : str(6),
-    8 : str(7),
-    9 : str(8),
-    10 : str(9),
-    11 : str(0)
-}
+code_to_key = {};
+
+# Python dictionaries cannot have variables as keys... so we'll use this lame
+# workaround.
+code_to_key[KEY_1] = str(1)
+code_to_key[KEY_2] = str(2)
+code_to_key[KEY_3] = str(3)
+code_to_key[KEY_4] = str(4)
+code_to_key[KEY_5] = str(5)
+code_to_key[KEY_6] = str(6)
+code_to_key[KEY_7] = str(7)
+code_to_key[KEY_8] = str(8)
+code_to_key[KEY_9] = str(9)
+code_to_key[KEY_0] = str(0)
+code_to_key[KEY_MINUS] = '-'
+code_to_key[KEY_EQUAL] = '='
+code_to_key[KEY_Q] = 'Q'
+code_to_key[KEY_W] = 'W'
+code_to_key[KEY_E] = 'E'
+code_to_key[KEY_R] = 'R'
+code_to_key[KEY_T] = 'T'
+code_to_key[KEY_Y] = 'Y'
+code_to_key[KEY_U] = 'U'
+code_to_key[KEY_I] = 'I'
+code_to_key[KEY_O] = 'O'
+code_to_key[KEY_P] = 'P'
+code_to_key[KEY_A] = 'A'
+code_to_key[KEY_S] = 'S'
+code_to_key[KEY_D] = 'D'
+code_to_key[KEY_F] = 'F'
+code_to_key[KEY_G] = 'G'
+code_to_key[KEY_H] = 'H'
+code_to_key[KEY_J] = 'J'
+code_to_key[KEY_K] = 'K'
+code_to_key[KEY_L] = 'L'
+code_to_key[KEY_SEMICOLON] = ';'
+code_to_key[KEY_Z] = 'Z'
+code_to_key[KEY_X] = 'X'
+code_to_key[KEY_C] = 'C'
+code_to_key[KEY_V] = 'V'
+code_to_key[KEY_B] = 'B'
+code_to_key[KEY_N] = 'N'
+code_to_key[KEY_M] = 'M'
+code_to_key[KEY_COMMA] = ','
+code_to_key[KEY_DOT] = '.'
 
 
 #==============================================================================
@@ -71,15 +136,16 @@ code_to_key = {
 def translate(code):
     return code_to_key.get(code, 'None')
 
-# the path to the card reader
-card_reader_path = "/dev/input/by-id/usb-13ba_Barcode_Reader-event-kbd"
-#card_reader_path ="/dev/input/event16";
+# the path to the card reader. Allow for either the swipe card reader or the 
+# RFID card reader.
+card_reader_path = ""
+if (len(sys.argv) > 1 and sys.argv[1] == "--rfid"):
+    card_reader_path = "/dev/input/by-id/usb-13ba_Barcode_Reader-event-kbd"
+elif (len(sys.argv) > 1 and sys.argv[1] == "--swipe"):
+    card_reader_path = "/dev/input/by-id/usb-Mag-Tek_USB_Swipe_Reader-event-kbd"
 
-# the number of digits in the card id number
-num_digits = 10
-
-# the name of the FIFO being used to send the card number to the Event Handler
-fifo_path = (sys.argv[1] if (len(sys.argv) > 1) else 'card-id-num.fifo')
+# set the path for the fifo.
+fifo_path = "card-id-num.fifo"
 
 # setup the FIFO
 # if the FIFO referenced by fifo_path is not a FIFO, delete the file and create
@@ -102,29 +168,38 @@ EVENT_SIZE = struct.calcsize(FORMAT)
 card_reader = open(card_reader_path, "rb")
 event = card_reader.read(EVENT_SIZE)
 
-# read in the ten digits of the card id number, concatenating them onto a
-# String. Once all ten digits have been read in write the sttring to the pipe
-# and restart
 current_id_num = ""
-num_vals_received = 0
+shifted = False
 while event:
     (tv_sec, tv_usec, type, code, value) = struct.unpack(FORMAT, event)
 
-    # The value of code should only be recorded when 'value' is 1.
-    # read in the ten digits of the id number
-    if num_vals_received < 10 and code < 28 and value == 1:
-        curr_val = translate(code)
-        current_id_num += str(curr_val)
-        num_vals_received += 1
-
-    # once the ten digits have been read in, write the card number to the fifo
-    # and reset the variables for the next card number.
-    elif num_vals_received == 10 and code == 28:
-        fifo = open(fifo_path, 'w')
-        fifo.write(current_id_num + "\n")
-        fifo.close()
-        num_vals_received = 0
-        current_id_num = ''
+    # value = 1 -> that a value has been entered.
+    # we only care about events when value == 1
+    if (value == 1):
+        # if the code is the starting delimitor, clear out the card number 
+        # string
+        if (code == KEY_SEMICOLON or 
+           (shifted and (code == KEY_5 or code == KEY_EQUAL))):
+            current_id_num = ""
+            shifted = False
+        # The keyboard event for the "shift" key in regards to a card reader may
+        # seem odd, but this is how one gets keys like "?" and "%". We set a
+        # flag so that we can check for either "%", a starting delimitor, or 
+        # "?", an ending delimitor.
+        elif (code == KEY_LEFTSHIFT):
+            shifted = True
+        # the "?" key is the end delimitor for swipe style card readers, and 
+        # so when it is found the ID gets written to the fifo, and everything 
+        # is reset to read in another ID. The "\n" key is the end delimitor for
+        # the RFID card reader.
+        elif ((code == KEY_SLASH and shifted) or code == KEY_ENTER):
+            fifo = open(fifo_path, 'w')
+            fifo.write(current_id_num + "\n")
+            fifo.close()
+            current_id_num = ''
+	    shifted = False
+        else:
+            current_id_num += translate(code)
 
     # read in the next event, and go back to the top of the loop
     event = card_reader.read(EVENT_SIZE)

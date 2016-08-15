@@ -123,7 +123,7 @@ my $database = Persist->spawn();
 
 # Start the python script which reads data from the card reader 
 Parallel::Jobs::start_job({stderr_capture => 1 | stdout_capture => 1}, 
-                          "$FindBin::Bin/read.py");
+                          "$FindBin::Bin/read.py --swipe");
 
 # Create two named pipes, password.fifo and purpose.fifo in the Apache 
 # DocumentRoot for retrieving informaiton submitted in the web-forms.
