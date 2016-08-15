@@ -170,6 +170,8 @@ event = card_reader.read(EVENT_SIZE)
 
 current_id_num = ""
 shifted = False
+
+# loop forever, processing each card swipe or scan  as it comes in
 while event:
     (tv_sec, tv_usec, type, code, value) = struct.unpack(FORMAT, event)
 
