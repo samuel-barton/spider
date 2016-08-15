@@ -27,8 +27,14 @@ if [ $? == "0" ]
 then
     echo " done.";
 fi
-echo -n "Installing lamp-server^.";
-sudo apt-get install -y lamp-server^ > /dev/null;
+echo -n "Installing Apache.";
+sudo apt-get install -y apache2 > /dev/null;
+if [ $? == "0" ]
+then
+    echo " done.";
+fi
+echo -n "Installing PHP 5.";
+sudo apt-get install -y php2 > /dev/null;
 if [ $? == "0" ]
 then
     echo " done.";
