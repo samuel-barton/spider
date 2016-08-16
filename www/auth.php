@@ -4,7 +4,6 @@
 <?php
 // Get the password (if it has been submitted)
 $password = $_POST["password"];
-
 // if the password has been submitted
 if (strlen($password) > 0)
 {

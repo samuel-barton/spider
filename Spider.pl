@@ -141,6 +141,8 @@ until ($stop)
 {
     $restart = 0;
 
+    say ("This is a test.");
+
     # Keep the welcome webpage visible until recognized card is swiped.
     &setStatus("false");
 
@@ -149,12 +151,16 @@ until ($stop)
     my $id = <fifo>;
     chomp($id);
 
+    say "past card pipe";
+
     # find out if the card number is recognized.
     (my $user_name, my $real_password, my $photo) = &isAuthorizedUser($id);
     # write the photo of the user to the www/img directory.
     # make sure the path exists.
     -e "$findBin::Bin/www/img" or mkdir "www/img";
     Hex::hexToFile("www/img/$user_name.jpg", $photo);
+
+    say "$user_name, $real_password";
 
     # If the user is currently logged in, log them out of the system, display a
     # message on the web UI alerting them that they have been logged out for 3
@@ -163,6 +169,8 @@ until ($stop)
     {
         # update the datahbase to reflect the logout
         &logout($user_name, $id);
+
+        say "logout post db check";
 
         # trigger loading logout.php by welcome.js
         &setStatus("logout");
@@ -198,6 +206,7 @@ until ($stop)
             # trigger a reload of password.php by password.js
             &setStatus("continue");
             $count++;
+	    sleep (1);
         }
       
         # If the password isn't correct at this point the user has exhausted 
@@ -248,7 +257,10 @@ until ($stop)
                 $purpose = <purpose_fifo>;
                 close(purpose_fifo);
                 chomp($purpose);
+		sleep (1);
             }
+
+            say "past pipe";
 
             # log the user in.
             &login($id,$user_name,$purpose);
@@ -326,7 +338,7 @@ sub isAuthorizedUser
     my $card_num = $_[0];
 
     # get the information on this user from the databse
-    my @res = $database->getInfo($card_num);
+    my @res = Persist::safeGetInfo($card_num);
 
     # if the database had nothing on this user, then return an array of three
     # empty strings to indicate that each field (username,password,photo) had
@@ -497,10 +509,14 @@ sub login
         &setupLinks();
     }
 
+    say "pre db check";
+
+    # update the database
+    Persist::safeLogin($id, $purpose);
     # add the id to the list of logged in IDs
     push @logged_in_ids, $id;
-    # update the databases list of logged in IDs
-    $database->login($id);
+
+    say "post db check";
 }
 
 #==============================================================================
@@ -565,5 +581,5 @@ sub logout
     }
 
     # update the database to reflect the user's logout
-    $database->logout($id);
+    Persist::safeLogout($id);
 }

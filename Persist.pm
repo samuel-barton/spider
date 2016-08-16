@@ -46,6 +46,17 @@ sub __connectToDB
     return $dbh;
 }
 
+sub __disconnectFromDB
+{
+    # get an instance of this persist object
+    my $self = shift;
+
+    my $database = $self->{database};
+
+    # disconnect from the database
+    $database->disconnect() or die $database->errstr;
+}
+
 #==============================================================================
 #
 # Method name: addUser
@@ -85,6 +96,19 @@ sub addUser
     $query->execute($id, $name, $password,$hex); 
 }
 
+sub safeGetInfo
+{
+    my $id = shift;
+
+    my $persist = &spawn();
+
+    my @info = $persist->getInfo($id);
+
+    $persist->__disconnectFromDB();
+
+    return @info; 
+}
+
 #==============================================================================
 #
 # Method name: getInfo
@@ -110,7 +134,10 @@ sub getInfo
     # poll the database for the user's info
     my $query = $database->prepare("SELECT name, password, photo ".
                                    "FROM user_list WHERE id=?");
+
     $query->execute($id);
+
+    say "Past database check.";
 
     # return the first, and only since the IDs are unique, set of info returned
     return $query->fetchrow_array; 
@@ -215,6 +242,14 @@ sub logout
     $self->logAccess($id, 0);
 }
 
+sub safeLogout
+{
+    my $id = shift;
+
+    my $persist = &spawn();
+    $persist->logout($id);
+    $persist->__disconnectFromDB();
+}
 #==============================================================================
 #
 # Method name: login
@@ -247,6 +282,15 @@ sub login
     $self->logAccess($id,1,$purpose);
 }
 
+sub safeLogin
+{
+    my $id = shift;
+    my $purpose = shift;
+
+    my $persist = &spawn();
+    $persist->login($id, $purpose);
+    $persist->__disconnectFromDB();
+}
 
 #==============================================================================
 #
