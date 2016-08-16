@@ -35,13 +35,9 @@ chomp($password);
 chomp($photo_path);
 
 # create a Persist object
-my $database = Persist->spawn();
 # add the new user to the database, or print an error message and terminate the
 # program.
-$database->addUser($id,
-                   $name,
-                   $password,
-                   $photo_path) or die "Couldn't add user.";
+Persist::addUser($id,$name,$password,$photo_path) or die "Couldn't add user.";
 
 # if we make it here, then the user was successfully added to the database
 say "User added to database.";

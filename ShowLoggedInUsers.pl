@@ -24,11 +24,8 @@ use Hex;
 
 do
 {
-    # create a connection to the database.
-    my $database = Persist::spawn();
-
     # get the list of logged in users from the databse.
-    my @logged_in_users = $database->getLoggedInUsers();
+    my @logged_in_users = Persist::userList()s
 
     # empty array which we will use for return value.
     my @return;
@@ -39,10 +36,10 @@ do
     for my $user (@logged_in_users)
     {
         # get login time from the database
-        my $login_time = $database->getLoginTime($user);    
+        my $login_time = Persist::getLoginTime($user);    
 
         # get the needed info about the user from the database
-        (my $name, my $password, my $photo) = $database->getInfo($user);
+        (my $name, my $password, my $photo) = Persist::getInfo($user);
 
         # write the users photo to a file
         Hex::hexToFile("www/img/$name.jpg", $photo);

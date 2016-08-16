@@ -116,10 +116,9 @@ my @logged_in_ids;
 # - the format for getting dates for the timestamp portion of the log entry
 my $date_format = 'date +%b\ %d\ %Y\ %H:%M:%S';
 # - The persistance object used to access the database
-my $database = Persist->spawn();
 
 # Get list of currently logged in users from the database.
-@logged_in_ids = $database->getLoggedInUsers();
+@logged_in_ids = Persist::userList();
 
 # Start the python script which reads data from the card reader 
 my $card_type = "--swipe";
@@ -338,7 +337,7 @@ sub isAuthorizedUser
     my $card_num = $_[0];
 
     # get the information on this user from the databse
-    my @res = Persist::safeGetInfo($card_num);
+    my @res = Persist::getInfo($card_num);
 
     # if the database had nothing on this user, then return an array of three
     # empty strings to indicate that each field (username,password,photo) had
@@ -389,7 +388,7 @@ sub logError
     }
 
     # log the error to the database 
-    $database->logError($id,$error_message);
+    Persist::logError($id,$error_message);
 }
 
 #==============================================================================
@@ -512,7 +511,7 @@ sub login
     say "pre db check";
 
     # update the database
-    Persist::safeLogin($id, $purpose);
+    Persist::login($id, $purpose);
     # add the id to the list of logged in IDs
     push @logged_in_ids, $id;
 
@@ -581,5 +580,5 @@ sub logout
     }
 
     # update the database to reflect the user's logout
-    Persist::safeLogout($id);
+    Persist::logout($id);
 }
