@@ -97,12 +97,6 @@ my $stop = 0;
 my $log_path;
 # - The string reprisenting an unauthorized card #
 my $UNAUTHORIZED_CARD = "";
-# - The name of the card reader being read from
-my $card_reader_name = "card-reader";
-# - The Vendor ID of the card reader being read from
-my $vendor_id = "13ba";
-# - The Product ID of the card reader being read from
-my $product_id = "0018";
 # - Sentinel for skipping the remainder of the steps of the loop 
 my $restart = 0;
 # - The path to the named pipe where the card numbers come from
@@ -126,6 +120,7 @@ if (length(@ARGV) > 1)
 {
     $card_type = $ARGV[1];
 }
+
 Parallel::Jobs::start_job({stderr_capture => 1 | stdout_capture => 1}, 
                           "$FindBin::Bin/read.py $card_type");
 
@@ -140,8 +135,6 @@ until ($stop)
 {
     $restart = 0;
 
-    say ("This is a test.");
-
     # Keep the welcome webpage visible until recognized card is swiped.
     &setStatus("false");
 
@@ -150,16 +143,12 @@ until ($stop)
     my $id = <fifo>;
     chomp($id);
 
-    say "past card pipe";
-
     # find out if the card number is recognized.
     (my $user_name, my $real_password, my $photo) = &isAuthorizedUser($id);
     # write the photo of the user to the www/img directory.
     # make sure the path exists.
     -e "$findBin::Bin/www/img" or mkdir "www/img";
     Hex::hexToFile("www/img/$user_name.jpg", $photo);
-
-    say "$user_name, $real_password";
 
     # If the user is currently logged in, log them out of the system, display a
     # message on the web UI alerting them that they have been logged out for 3
@@ -168,8 +157,6 @@ until ($stop)
     {
         # update the datahbase to reflect the logout
         &logout($user_name, $id);
-
-        say "logout post db check";
 
         # trigger loading logout.php by welcome.js
         &setStatus("logout");
@@ -258,8 +245,6 @@ until ($stop)
                 chomp($purpose);
 		sleep (1);
             }
-
-            say "past pipe";
 
             # log the user in.
             &login($id,$user_name,$purpose);
@@ -508,14 +493,10 @@ sub login
         &setupLinks();
     }
 
-    say "pre db check";
-
     # update the database
     Persist::login($id, $purpose);
     # add the id to the list of logged in IDs
     push @logged_in_ids, $id;
-
-    say "post db check";
 }
 
 #==============================================================================

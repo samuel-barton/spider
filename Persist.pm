@@ -194,8 +194,6 @@ sub __getInfo
 
     $query->execute($id);
 
-    say "Past database check.";
-
     # return the first, and only since the IDs are unique, set of info returned
     return $query->fetchrow_array; 
 }
