@@ -78,10 +78,11 @@ fi
 sudo service apache2 restart;
 
 # fix the username in the apache config file
-cat apache/spider.conf | sed "s:/home/[a-zA-Z0-9]+/:/home/$(USER)/";
+cat apache/spider.conf | sed "s:/home/[a-zA-Z0-9]+/:/home/$(USER)/" > tmp;
+mv tmp apache/spider.conf;
 
 # put the apache config file in the correct directory
-sudo cp apache/spider /etc/apache2/sites-enabled/;
+sudo cp apache/spider.conf /etc/apache2/sites-enabled/;
 
 # -- Udev rules configuration
 

@@ -118,7 +118,7 @@ my $date_format = 'date +%b\ %d\ %Y\ %H:%M:%S';
 # - The persistance object used to access the database
 
 # Get list of currently logged in users from the database.
-@logged_in_ids = Persist::userList();
+@logged_in_ids = Persist::getLoggedInUsers();
 
 # Start the python script which reads data from the card reader 
 my $card_type = "--swipe";

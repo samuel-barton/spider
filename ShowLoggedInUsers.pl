@@ -25,7 +25,7 @@ use Hex;
 do
 {
     # get the list of logged in users from the databse.
-    my @logged_in_users = Persist::userList()s
+    my @logged_in_users = Persist::getLoggedInUsers()s
 
     # empty array which we will use for return value.
     my @return;

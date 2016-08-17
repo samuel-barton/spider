@@ -250,7 +250,7 @@ sub __getLoggedInUsers
 #              needed.
 #
 #==============================================================================
-sub userList
+sub getLoggedInUsers
 {
     my $persist = &spawn();
     my @ids = $persist->__getLoggedInUsers();
@@ -259,6 +259,8 @@ sub userList
 
     return @ids;
 }
+
+
 
 #==============================================================================
 #
@@ -310,7 +312,7 @@ sub getLoginTime
 
     my $persist = &spawn();
 
-    my $login_time = $perisst->__getLoginTime();
+    my $login_time = $persist->__getLoginTime();
     $persist->__disconnectFromDB();
 
     return $login_time;
