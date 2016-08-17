@@ -52,6 +52,7 @@ do
         push @return, \@output;
     }
 
+    # generate the user list page.
     GenHTML::genLoggedIn(@return);
 
     # recreate the page in 10 seconds.
