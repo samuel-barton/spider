@@ -108,11 +108,22 @@ There is also a udev rules file to make it so read.py can read from the card
 reader without running as root. 
     100-card-reader.rules
 
-Deployment
--------------------------------------------------------------------------------
-The file config.sh downloads the dependencies, and handles deploying Spider on
-some system.
+This file must be put in /etc/udev/rules.d and a group named 'input' must be 
+added and whatever user runs the program must be added to the 'input' group.
 
+Dependencies
+-------------------------------------------------------------------------------
+The following dependencies must be met in order for the program to run.
+
+Packages
+ - libpq-dev
+ - apache2
+ - php5
+
+Perl Modules
+ - DBI
+ - DBD::Pg
+ - Parallel::Jobs
 
 Legacy Code
 -------------------------------------------------------------------------------
